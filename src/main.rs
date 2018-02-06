@@ -5,8 +5,10 @@ extern crate futures;
 extern crate tokio_core;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
+#[macro_use]
+extern crate lazy_static;
 
-use futures::stream::Stream;
+use futures::{Sink, Stream};
 use net2::UdpBuilder;
 use net2::unix::UnixUdpBuilderExt;
 use std::io;
@@ -15,6 +17,7 @@ use std::str::FromStr;
 use tokio_core::net::{UdpCodec, UdpSocket};
 use tokio_core::reactor::{Core, Handle};
 
+const PROTOCOL_VERSION: u8 = 0;
 const BIND: &'static str = "0.0.0.0:6776";
 const CAST: &'static str = "224.0.247.51:6776";
 const MULTI: [u8; 4] = [224, 0, 247, 51];
@@ -33,15 +36,7 @@ fn udp(handle: &Handle) -> io::Result<UdpSocket> {
 
     // test message buffered by kernel and received immediately
     // by ourselves so we can check the tokio stack works
-    let msg = serde_json::to_vec(&Message {
-        v: 0,
-        id: "test".into(),
-        agent: (
-            env!("CARGO_PKG_NAME").into(),
-            env!("CARGO_PKG_VERSION").into()
-        ),
-        body: None,
-    }).unwrap();
+    let msg = serde_json::to_vec(&Message::new(None)).unwrap();
     sock.send_to(
         &msg,
         &SocketAddr::from_str(CAST).unwrap()
@@ -50,9 +45,15 @@ fn udp(handle: &Handle) -> io::Result<UdpSocket> {
     UdpSocket::from_socket(sock, handle)
 }
 
-fn id() -> String {
-    let bytes = rust_sodium::randombytes::randombytes(16);
-    base64::encode_config(&bytes, base64::URL_SAFE_NO_PAD)
+fn id() -> &'static String {
+    lazy_static! {
+        static ref ID: String = {
+            let bytes = rust_sodium::randombytes::randombytes(16);
+            base64::encode_config(&bytes, base64::URL_SAFE_NO_PAD)
+        };
+    }
+
+    &ID
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
@@ -62,6 +63,20 @@ struct Message {
     id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     body: Option<String>,
+}
+
+impl Message {
+    fn new(body: Option<String>) -> Self {
+        Message {
+            v: PROTOCOL_VERSION,
+            id: id().clone(),
+            agent: (
+                env!("CARGO_PKG_NAME").into(),
+                env!("CARGO_PKG_VERSION").into()
+            ),
+            body: body,
+        }
+    }
 }
 
 struct JsonCodec;
@@ -86,11 +101,10 @@ impl UdpCodec for JsonCodec {
 }
 
 fn main() {
-    let id = id();
     println!("{} v{}\nID: {}",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
-        id
+        id()
     );
 
     if !rust_sodium::init() {
@@ -100,19 +114,25 @@ fn main() {
     let mut core = Core::new().expect("Failed to initialise event loop");
     let handle = core.handle();
 
-    let udp = udp(&handle).expect("Failed to bind UDP").framed(JsonCodec);
+    let (mut writer, reader) = udp(&handle).expect("Failed to bind UDP")
+        .framed(JsonCodec).split();
 
-    let server = udp.for_each(|msg| {
+    let server = reader.for_each(|msg| {
         let msg = match msg {
             None => return Ok(()),
             Some(m) => m
         };
 
         // Ignore own messages
-        if msg.id == id { return Ok(()) }
+        if &msg.id == id() { return Ok(()) }
+
+        if msg.body == Some("ping".into()) {
+            if let Err(err) = writer.start_send(Message::new(Some("pong".into()))) {
+                println!("Failed send: {:?}", err);
+            }
+        }
 
         println!("{:?}", msg);
-        // println!("addr: {:?} msg: {:?}", addr, message);
         Ok(())
     });
 

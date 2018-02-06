@@ -15,7 +15,8 @@ client.on('listening', () => {
   client.setMulticastLoopback(true)
   client.setMulticastTTL(128)
   client.addMembership(CAST)
-  setInterval(usercast, 2800)
+  message('hello')
+  setInterval(() => message('ping'), 5000)
 })
 
 client.on('message', (message, remote) => {
@@ -24,14 +25,13 @@ client.on('message', (message, remote) => {
 
 client.bind(PORT)
 
-function usercast () {
-  const message = Buffer.from(JSON.stringify({
+function message (body) {
+  const msg = Buffer.from(JSON.stringify({
     v: 0,
     agent: [pkg.name, pkg.version],
     id: ID,
-    body: 'hello - ' + Math.random()
+    body
   }))
-  client.send(message, 0, message.length, PORT, CAST)
-  console.log('client | sent holla')
+  client.send(msg, 0, msg.length, PORT, CAST)
+  console.log(`client | sent ${body}`)
 }
-

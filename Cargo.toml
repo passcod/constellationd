@@ -6,6 +6,7 @@ version = "0.1.0"
 [dependencies]
 base64 = "0.9.0"
 futures = "0.1.18"
+lazy_static = "1.0.0"
 net2 = "0.2.31"
 rust_sodium = "0.7.0"
 serde = "1.0.27"
