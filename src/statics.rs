@@ -1,6 +1,7 @@
 use base64::{encode_config, URL_SAFE_NO_PAD};
+use config::Config;
 use rust_sodium::randombytes::randombytes;
-use rust_sodium::crypto::secretbox::{Key, gen_key};
+use rust_sodium::crypto::secretbox::Key;
 
 /// The unique ID of this particular instance of this agent.
 pub fn id() -> &'static String {
@@ -23,9 +24,7 @@ pub fn id() -> &'static String {
 pub fn key() -> &'static String {
     lazy_static! {
         static ref KEY: String = {
-            // TODO get from file
-            return "DopdJoNKELA9bwxaXibc1w".into();
-            encode_config(&randombytes(16), URL_SAFE_NO_PAD)
+            config().key.clone()
         };
     }
 
@@ -36,11 +35,24 @@ pub fn key() -> &'static String {
 pub fn secret() -> &'static Key {
     lazy_static! {
         static ref SECRET: Key = {
-            // TODO get from file
-            return Key::from_slice(&[119, 17, 247, 68, 67, 146, 203, 92, 62, 134, 39, 34, 240, 64, 131, 125, 218, 235, 91, 119, 157, 225, 13, 248, 10, 119, 164, 125, 211, 137, 191, 88]).unwrap();
-            gen_key()
+            Key::from_slice(&config().secret).expect("Secret corrupted or missing.")
         };
     }
 
     &SECRET
+}
+
+/// The config, loaded once.
+///
+/// Loads either from embed or from file, in this order.
+pub fn config() -> &'static Config {
+    lazy_static! {
+        static ref CONFIG: Config = {
+            Config::from_embed()
+                .or_else(|| Config::from_file())
+                .expect("No config found, abort.")
+        };
+    }
+
+    &CONFIG
 }

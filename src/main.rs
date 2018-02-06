@@ -15,6 +15,7 @@ use gossip::{message, Message};
 use statics::id;
 use tokio_core::reactor::Core;
 
+mod config;
 mod constants;
 mod gossip;
 mod statics;

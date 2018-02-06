@@ -8,8 +8,9 @@ const PORT = +(process.env.PORT || 6776)
 const CAST = '224.0.247.51'
 const ID = crypto.randomBytes(16).toString('base64').replace(/[^\w]+/g, '')
 
-const KEY = 'DopdJoNKELA9bwxaXibc1w'
-const SECRET = Buffer.from([119, 17, 247, 68, 67, 146, 203, 92, 62, 134, 39, 34, 240, 64, 131, 125, 218, 235, 91, 119, 157, 225, 13, 248, 10, 119, 164, 125, 211, 137, 191, 88])
+const config = require('./constellationd.json')
+const KEY = config.key
+const SECRET = Buffer.from(config.secret)
 
 const client = dgram.createSocket({ type: 'udp4', reuseAddr: true })
 
