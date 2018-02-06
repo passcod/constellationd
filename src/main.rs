@@ -3,7 +3,9 @@ extern crate futures;
 #[macro_use]
 extern crate lazy_static;
 extern crate net2;
+extern crate rmp_serde;
 extern crate rust_sodium;
+extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 extern crate tokio_core;
@@ -18,10 +20,12 @@ mod gossip;
 mod statics;
 
 fn main() {
-    println!("{} v{}\nID: {}",
+    println!("{} v{}\nID: {}\nKey: {}\nSecret: {:?}",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
-        id()
+        id(),
+        statics::key(),
+        &statics::secret()[..]
     );
 
     if !rust_sodium::init() {

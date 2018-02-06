@@ -1,7 +1,6 @@
 use constants::*;
 use net2::UdpBuilder;
 use net2::unix::UnixUdpBuilderExt;
-use serde_json;
 use std::io;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -10,8 +9,10 @@ use tokio_core::reactor::Handle;
 
 pub use self::codec::GossipCodec;
 pub use self::message::Message;
+pub use self::envelope::Envelope;
 
 mod codec;
+mod envelope;
 mod message;
 
 pub fn udp(handle: &Handle) -> io::Result<UdpSocket> {
@@ -27,7 +28,7 @@ pub fn udp(handle: &Handle) -> io::Result<UdpSocket> {
 
     // test message buffered by kernel and received immediately
     // by ourselves so we can check the tokio stack works
-    let msg = serde_json::to_vec(&Message::new(None)).unwrap();
+    let msg = Envelope::new(&Message::new(None)).pack().unwrap();
     sock.send_to(
         &msg,
         &SocketAddr::from_str(CAST).unwrap()

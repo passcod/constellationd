@@ -1,11 +1,10 @@
 use constants::*;
-use serde_json;
 use std::io;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tokio_core::net::UdpCodec;
 
-use super::Message;
+use super::{Envelope, Message};
 
 pub struct GossipCodec;
 
@@ -14,15 +13,26 @@ impl UdpCodec for GossipCodec {
     type Out = Message;
 
     fn decode(&mut self, _: &SocketAddr, buf: &[u8]) -> io::Result<Self::In> {
-        serde_json::from_slice(buf)
-            .or_else(|err| {
-                println!("Bad message: {:?}\n{:?}", buf, err);
+        let env = match Envelope::unpack(buf) {
+            None => return Ok(None),
+            Some(e) => e
+        };
+
+        match env.open() {
+            Err(err) => {
+                println!("Bad json: {:?}\n{:?}", buf, err);
                 Ok(None)
-            })
+            },
+            Ok(None) => {
+                println!("Bad encryption: {:?}", buf);
+                Ok(None)
+            },
+            Ok(Some(m)) => Ok(Some(m))
+        }
     }
 
     fn encode(&mut self, msg: Self::Out, buf: &mut Vec<u8>) -> SocketAddr {
-        let ser = serde_json::to_vec(&msg).expect("Unable to encode message");
+        let ser = Envelope::new(&msg).pack().expect("Unable to encode message");
         buf.extend(ser);
         SocketAddr::from_str(CAST).unwrap()
     }
