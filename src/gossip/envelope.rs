@@ -47,4 +47,16 @@ impl Envelope {
             Ok(e) => Some(e)
         }
     }
+
+    pub fn check(&self) -> bool {
+        if self.v != constants::PROTOCOL_VERSION {
+            return false;
+        }
+
+        if &self.key != statics::key() {
+            return false;
+        }
+
+        true
+    }
 }

@@ -18,6 +18,11 @@ impl UdpCodec for GossipCodec {
             Some(e) => e
         };
 
+        if ! env.check() {
+            println!("Bad metadata: {:?}", env);
+            return Ok(None)
+        }
+
         match env.open() {
             Err(err) => {
                 println!("Bad json: {:?}\n{:?}", buf, err);

@@ -1,9 +1,7 @@
-use constants;
-use statics::id;
+use statics;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct Message {
-    pub v: u8,
     pub agent: (String, String),
     pub id: String,
 
@@ -14,8 +12,7 @@ pub struct Message {
 impl Message {
     pub fn new(body: Option<String>) -> Self {
         Message {
-            v: constants::PROTOCOL_VERSION,
-            id: id().clone(),
+            id: statics::id().clone(),
             agent: (
                 env!("CARGO_PKG_NAME").into(),
                 env!("CARGO_PKG_VERSION").into()

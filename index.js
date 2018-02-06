@@ -32,6 +32,7 @@ client.on('message', (message, remote) => {
         } catch (e) {
             var { v, key, nonce, body } = msg
             if (v !== 0) throw new Error('Wrong version')
+            if (key !== KEY) throw new Error('Wrong key')
         }
     } catch (err) {
         return console.log('←', message)
@@ -50,7 +51,6 @@ client.bind(PORT)
 
 function message (body) {
     const message = JSON.stringify({
-        v: 0,
         agent: [pkg.name, pkg.version],
         id: ID,
         body
