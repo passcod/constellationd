@@ -11,9 +11,9 @@ pub use self::codec::GossipCodec;
 pub use self::message::Message;
 pub use self::envelope::Envelope;
 
-mod codec;
-mod envelope;
-mod message;
+pub mod codec;
+pub mod envelope;
+pub mod message;
 
 pub fn udp(handle: &Handle) -> io::Result<UdpSocket> {
     let sock = UdpBuilder::new_v4()?
@@ -28,7 +28,7 @@ pub fn udp(handle: &Handle) -> io::Result<UdpSocket> {
 
     // test message buffered by kernel and received immediately
     // by ourselves so we can check the tokio stack works
-    let msg = Envelope::new(&Message::new(None)).pack().unwrap();
+    let msg = Envelope::new(&Message::new(message::Kind::Hello)).pack().unwrap();
     sock.send_to(
         &msg,
         &SocketAddr::from_str(CAST).unwrap()

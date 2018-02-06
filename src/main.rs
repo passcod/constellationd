@@ -11,7 +11,7 @@ extern crate serde_json;
 extern crate tokio_core;
 
 use futures::{Sink, Stream};
-use gossip::Message;
+use gossip::{message, Message};
 use statics::id;
 use tokio_core::reactor::Core;
 
@@ -47,8 +47,8 @@ fn main() {
         // Ignore own messages
         if &msg.id == id() { return Ok(()) }
 
-        if msg.body == Some("ping".into()) {
-            if let Err(err) = writer.start_send(Message::new(Some("pong".into()))) {
+        if msg.kind == message::Kind::Ping {
+            if let Err(err) = writer.start_send(Message::new(message::Kind::Pong)) {
                 println!("Failed send: {:?}", err);
             }
         }

@@ -20,8 +20,8 @@ client.on('listening', () => {
   client.setMulticastLoopback(true)
   client.setMulticastTTL(128)
   client.addMembership(CAST)
-  message('hello')
-  setInterval(() => message('ping'), 5000)
+  message('Hello')
+  setInterval(() => message('Ping'), 5000)
 })
 
 client.on('message', (message, remote) => {
@@ -53,7 +53,7 @@ function message (body) {
     const message = JSON.stringify({
         agent: [pkg.name, pkg.version],
         id: ID,
-        body
+        kind: body
     })
     const msg = Buffer.from(message)
 
