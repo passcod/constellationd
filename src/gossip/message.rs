@@ -1,3 +1,4 @@
+use constants;
 use statics;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
@@ -14,8 +15,8 @@ impl Message {
         Message {
             id: statics::id().clone(),
             agent: (
-                env!("CARGO_PKG_NAME").into(),
-                env!("CARGO_PKG_VERSION").into()
+                constants::AGENT.0.into(),
+                constants::AGENT.1.into()
             ),
             body: body,
         }
