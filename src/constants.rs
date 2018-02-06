@@ -21,6 +21,9 @@ pub const BIND: &'static str = "0.0.0.0:6776";
 /// The port was also picked at random in the 6000 range, as regular as it seems.
 pub const CAST: &'static str = "224.0.247.51:6776";
 
+/// The name of the config file.
+pub const CONFIG_FILE: &'static str = "constellationd.json";
+
 /// The multicast address.
 ///
 /// See CAST for a description.

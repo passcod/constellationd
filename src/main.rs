@@ -18,20 +18,21 @@ use tokio_core::reactor::Core;
 mod config;
 mod constants;
 mod gossip;
+mod keygen;
 mod statics;
 
 fn main() {
-    println!("{} v{}\nID: {}\nKey: {}\nSecret: {:?}",
+    println!("{} v{}\nID: {}",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
-        id(),
-        statics::key(),
-        &statics::secret()[..]
+        id()
     );
 
     if !rust_sodium::init() {
         panic!("Failed to initialise sodium");
     }
+
+    keygen::main();
 
     let mut core = Core::new().expect("Failed to initialise event loop");
     let handle = core.handle();
