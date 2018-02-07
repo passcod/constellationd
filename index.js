@@ -28,18 +28,13 @@ client.on('listening', () => {
 client.on('message', (message, remote) => {
     const msg = cbor.decode(message)
     try {
-        try {
-            var [v, key, nonce, body] = msg
-        } catch (e) {
-            var { v, key, nonce, body } = msg
-            if (v !== 0) throw new Error('Wrong version')
-            if (key !== KEY) throw new Error('Wrong key')
-        }
+        var { v, key, nonce, body } = msg
+        if (v !== 0) throw new Error('Wrong version')
+        if (key !== KEY) throw new Error('Wrong key')
     } catch (err) {
         return console.log('←', message)
     }
 
-    body = Buffer.from(body)
     if (body.length > sodium.crypto_secretbox_MACBYTES) {
         const plain = Buffer.alloc(body.length - sodium.crypto_secretbox_MACBYTES)
         if (sodium.crypto_secretbox_open_easy(plain, body, nonce, SECRET)) {
@@ -68,7 +63,7 @@ function message (body) {
         v: 0,
         key: KEY,
         nonce,
-        body: Array.from(cipher.values()),
+        body: cipher,
     }))
 
     client.send(envelope, 0, envelope.length, PORT, CAST)

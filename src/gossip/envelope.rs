@@ -1,5 +1,6 @@
 use constants;
 use rust_sodium::crypto::secretbox::{gen_nonce, open, Nonce, seal};
+use serde_bytes;
 use serde_cbor;
 use serde_json;
 use statics;
@@ -10,7 +11,9 @@ pub struct Envelope {
     pub v: u8,
     pub key: String,
     pub nonce: Nonce,
-    pub body: Vec<u8>, // TODO: serialize as byte-array
+
+    #[serde(with = "serde_bytes")]
+    pub body: Vec<u8>,
 }
 
 impl Envelope {

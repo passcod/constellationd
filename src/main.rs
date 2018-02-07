@@ -5,6 +5,7 @@ extern crate lazy_static;
 extern crate net2;
 extern crate rust_sodium;
 extern crate serde;
+extern crate serde_bytes;
 extern crate serde_cbor;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
