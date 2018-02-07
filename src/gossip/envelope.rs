@@ -2,7 +2,6 @@ use constants;
 use rust_sodium::crypto::secretbox::{gen_nonce, open, Nonce, seal};
 use serde_bytes;
 use serde_cbor;
-use serde_json;
 use statics;
 use super::Message;
 
@@ -19,7 +18,7 @@ pub struct Envelope {
 impl Envelope {
     pub fn new(msg: &Message) -> Self {
         let nonce = gen_nonce();
-        let ser = serde_json::to_vec(&msg).expect("Unable to encode message");
+        let ser = serde_cbor::to_vec(&msg).expect("Unable to encode message");
         let body = seal(&ser, &nonce, statics::secret());
 
         Envelope {
@@ -30,10 +29,10 @@ impl Envelope {
         }
     }
 
-    pub fn open(&self) -> Result<Option<Message>, serde_json::Error> {
+    pub fn open(&self) -> Result<Option<Message>, serde_cbor::error::Error> {
         match open(&self.body, &self.nonce, statics::secret()) {
             Err(_) => Ok(None),
-            Ok(msg) => serde_json::from_slice(&msg).map(|m| Some(m))
+            Ok(msg) => serde_cbor::from_slice(&msg).map(|m| Some(m))
         }
     }
 

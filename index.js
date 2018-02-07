@@ -38,7 +38,7 @@ client.on('message', (message, remote) => {
     if (body.length > sodium.crypto_secretbox_MACBYTES) {
         const plain = Buffer.alloc(body.length - sodium.crypto_secretbox_MACBYTES)
         if (sodium.crypto_secretbox_open_easy(plain, body, nonce, SECRET)) {
-            body = JSON.parse(plain)
+            body = cbor.decode(plain)
         }
     }
 
@@ -48,7 +48,7 @@ client.on('message', (message, remote) => {
 client.bind(PORT)
 
 function message (body) {
-    const message = JSON.stringify({
+    const message = cbor.encode({
         agent: [pkg.name, pkg.version],
         id: ID,
         kind: body
