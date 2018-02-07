@@ -14,6 +14,8 @@ const SECRET = Buffer.from(config.secret)
 
 const client = dgram.createSocket({ type: 'udp4', reuseAddr: true })
 
+const times = {}
+
 client.on('listening', () => {
   const address = client.address()
   console.log('UDP Client listening on ' + address.address + ":" + address.port)
@@ -22,7 +24,11 @@ client.on('listening', () => {
   client.setMulticastTTL(128)
   client.addMembership(CAST)
   message('Hello')
-  setInterval(() => message('Ping'), 5000)
+  setInterval(() => {
+      const seq = Math.round(Math.random()*1000)
+      times[seq] = new Date
+      message('Ping', { seq })
+  }, 5000)
 })
 
 client.on('message', (message, remote) => {
@@ -39,19 +45,25 @@ client.on('message', (message, remote) => {
         const plain = Buffer.alloc(body.length - sodium.crypto_secretbox_MACBYTES)
         if (sodium.crypto_secretbox_open_easy(plain, body, nonce, SECRET)) {
             body = cbor.decode(plain)
+
+            if (body.seq) {
+                console.log(ts(), 'timing', (new Date) - times[body.seq])
+                delete times[body.seq]
+            }
         }
     }
 
-    console.log('←', { v, key, nonce, body })
+    console.log(ts(), '←', { v, key, nonce, body })
 })
 
 client.bind(PORT)
 
-function message (body) {
+function message (kind, args = {}) {
     const message = cbor.encode({
         agent: [pkg.name, pkg.version],
         id: ID,
-        kind: body
+        kind,
+        ...args
     })
     const msg = Buffer.from(message)
 
@@ -67,5 +79,9 @@ function message (body) {
     }))
 
     client.send(envelope, 0, envelope.length, PORT, CAST)
-    console.log('→', message)
+    console.log(ts(), '→', message)
+}
+
+function ts () {
+    return `${new Date}`.split(' ')[4]
 }
