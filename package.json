@@ -9,7 +9,7 @@
   "author": "Félix Saparelli <felix@passcod.name> (https://passcod.name)",
   "license": "ISC",
   "dependencies": {
-    "msgpack5": "^4.0.1",
+    "cbor": "^3.0.3",
     "sodium-native": "^2.1.4"
   }
 }

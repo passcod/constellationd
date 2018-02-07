@@ -1,6 +1,6 @@
 use constants;
-use rmp_serde;
 use rust_sodium::crypto::secretbox::{gen_nonce, open, Nonce, seal};
+use serde_cbor;
 use serde_json;
 use statics;
 use super::Message;
@@ -34,14 +34,14 @@ impl Envelope {
         }
     }
 
-    pub fn pack(&self) -> Result<Vec<u8>, rmp_serde::encode::Error> {
-        rmp_serde::to_vec(&self)
+    pub fn pack(&self) -> Result<Vec<u8>, serde_cbor::error::Error> {
+        serde_cbor::to_vec(&self)
     }
 
     pub fn unpack(buf: &[u8]) -> Option<Self> {
-        match rmp_serde::from_slice(buf) {
+        match serde_cbor::from_slice(buf) {
             Err(err) => {
-                println!("Bad msgpack: {:?}\n{:?}", buf, err);
+                println!("Bad cbor: {:?}\n{:?}", buf, err);
                 None
             },
             Ok(e) => Some(e)

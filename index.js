@@ -1,6 +1,6 @@
+const cbor = require('cbor')
 const crypto = require('crypto')
 const dgram = require('dgram')
-const msgpack = require('msgpack5')()
 const pkg = require('./package.json')
 const sodium = require('sodium-native')
 
@@ -26,7 +26,7 @@ client.on('listening', () => {
 })
 
 client.on('message', (message, remote) => {
-    const msg = msgpack.decode(message)
+    const msg = cbor.decode(message)
     try {
         try {
             var [v, key, nonce, body] = msg
@@ -40,9 +40,11 @@ client.on('message', (message, remote) => {
     }
 
     body = Buffer.from(body)
-    const plain = Buffer.alloc(body.length - sodium.crypto_secretbox_MACBYTES)
-    if (sodium.crypto_secretbox_open_easy(plain, body, nonce, SECRET)) {
-        body = JSON.parse(plain)
+    if (body.length > sodium.crypto_secretbox_MACBYTES) {
+        const plain = Buffer.alloc(body.length - sodium.crypto_secretbox_MACBYTES)
+        if (sodium.crypto_secretbox_open_easy(plain, body, nonce, SECRET)) {
+            body = JSON.parse(plain)
+        }
     }
 
     console.log('←', { v, key, nonce, body })
@@ -62,7 +64,7 @@ function message (body) {
     const cipher = Buffer.alloc(msg.length + sodium.crypto_secretbox_MACBYTES)
     sodium.crypto_secretbox_easy(cipher, msg, nonce, SECRET)
 
-    const envelope = Buffer.from(msgpack.encode({
+    const envelope = Buffer.from(cbor.encode({
         v: 0,
         key: KEY,
         nonce,
