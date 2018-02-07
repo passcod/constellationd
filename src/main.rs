@@ -45,13 +45,10 @@ fn main() {
     writer.send(&Message::hello()).expect("Failed to send hello");
 
     let server = reader.for_each(|msg| {
+        // Ignore empty (errored) messages
         let msg = match msg {
-            None => {
-                return Ok(())
-            },
-            Some(m) => {
-                m
-            }
+            None => return Ok(()),
+            Some(m) => m
         };
 
         // Ignore own messages
@@ -59,6 +56,7 @@ fn main() {
             return Ok(())
         }
 
+        // Answer pings
         if msg.kind.is_ping() {
             if let Err(err) = writer.send(
                 &Message::pong(msg.seq.unwrap())

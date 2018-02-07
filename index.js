@@ -48,7 +48,6 @@ client.on('message', (message, remote) => {
 
             if (body.seq) {
                 console.log(ts(), 'timing', (new Date) - times[body.seq])
-                delete times[body.seq]
             }
         }
     }
