@@ -11,8 +11,8 @@ extern crate serde_cbor;
 extern crate serde_json;
 extern crate tokio_core;
 
-use futures::{Sink, Stream};
-use gossip::{message, Message};
+use futures::Stream;
+use gossip::{Caster, Message};
 use statics::id;
 use tokio_core::reactor::Core;
 
@@ -38,20 +38,31 @@ fn main() {
     let mut core = Core::new().expect("Failed to initialise event loop");
     let handle = core.handle();
 
-    let (mut writer, reader) = gossip::udp(&handle).expect("Failed to bind UDP")
-        .framed(gossip::GossipCodec).split();
+    let reader = Caster::new().expect("Failed to bind UDP")
+        .framed(&handle).expect("Failed to frame");
+
+    let writer = Caster::new().expect("Failed to bind UDP");
+    writer.send(&Message::hello()).expect("Failed to send hello");
 
     let server = reader.for_each(|msg| {
         let msg = match msg {
-            None => return Ok(()),
-            Some(m) => m
+            None => {
+                return Ok(())
+            },
+            Some(m) => {
+                m
+            }
         };
 
         // Ignore own messages
-        if &msg.id == id() { return Ok(()) }
+        if &msg.id == id() {
+            return Ok(())
+        }
 
-        if msg.kind == message::Kind::Ping {
-            if let Err(err) = writer.start_send(Message::new(message::Kind::Pong)) {
+        if msg.kind.is_ping() {
+            if let Err(err) = writer.send(
+                &Message::pong(msg.seq.unwrap())
+            ) {
                 println!("Failed send: {:?}", err);
             }
         }
