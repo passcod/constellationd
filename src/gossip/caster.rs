@@ -1,7 +1,7 @@
 use constants::*;
+use errors::SendError;
 use net2::UdpBuilder;
 use net2::unix::UnixUdpBuilderExt;
-use serde_cbor::error::Error as CborError;
 use std::io;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
@@ -10,12 +10,6 @@ use super::GossipCodec;
 use super::Message;
 use tokio_core::net::{UdpFramed, UdpSocket as TokioUdp};
 use tokio_core::reactor::Handle;
-
-#[derive(Debug)]
-pub enum SendError {
-    Io(io::Error),
-    Encode(CborError),
-}
 
 #[derive(Debug)]
 pub struct Caster {

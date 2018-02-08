@@ -1,4 +1,4 @@
-use errors;
+use errors::StreamError;
 use futures::{Future, MapErr, Stream};
 use futures::stream::ForEach;
 use tokio_core::reactor::Handle;
@@ -53,8 +53,8 @@ fn server(msg: Option<Message>) -> io::Result<()> {
     Ok(())
 }
 
-type ErrorFn = (Fn(io::Error) -> errors::StreamError);
-fn error(err: io::Error) -> errors::StreamError {
+type ErrorFn = (Fn(io::Error) -> StreamError);
+fn error(err: io::Error) -> StreamError {
     println!("Server error: {}", err);
-    errors::StreamError::Io(err)
+    StreamError::Io(err)
 }
