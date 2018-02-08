@@ -5,7 +5,6 @@ use statics;
 pub enum Kind {
     Hello,
     Ping,
-    Pong,
 }
 
 impl Kind {
@@ -20,9 +19,6 @@ pub struct Message {
     pub id: String,
 
     pub kind: Kind,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub seq: Option<usize>,
 }
 
 impl Message {
@@ -34,7 +30,6 @@ impl Message {
                 constants::AGENT.1.into()
             ),
             kind: kind,
-            seq: None,
         }
     }
 
@@ -42,9 +37,7 @@ impl Message {
         Self::new(Kind::Hello)
     }
 
-    pub fn pong(seq: usize) -> Self {
-        let mut msg = Self::new(Kind::Pong);
-        msg.seq = Some(seq);
-        msg
+    pub fn ping() -> Self {
+        Self::new(Kind::Ping)
     }
 }

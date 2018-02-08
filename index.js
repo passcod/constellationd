@@ -1,4 +1,5 @@
 const cbor = require('cbor')
+const chalk = require('chalk')
 const crypto = require('crypto')
 const dgram = require('dgram')
 const pkg = require('./package.json')
@@ -14,8 +15,6 @@ const SECRET = Buffer.from(config.secret)
 
 const client = dgram.createSocket({ type: 'udp4', reuseAddr: true })
 
-const times = {}
-
 client.on('listening', () => {
   const address = client.address()
   console.log('UDP Client listening on ' + address.address + ":" + address.port)
@@ -25,10 +24,8 @@ client.on('listening', () => {
   client.addMembership(CAST)
   message('Hello')
   setInterval(() => {
-      const seq = Math.round(Math.random()*1000)
-      times[seq] = new Date
-      message('Ping', { seq })
-  }, 5000)
+      message('Ping')
+  }, 10000)
 })
 
 client.on('message', (message, remote) => {
@@ -45,25 +42,23 @@ client.on('message', (message, remote) => {
         const plain = Buffer.alloc(body.length - sodium.crypto_secretbox_MACBYTES)
         if (sodium.crypto_secretbox_open_easy(plain, body, nonce, SECRET)) {
             body = cbor.decode(plain)
-
-            if (body.seq) {
-                console.log(ts(), 'timing', (new Date) - times[body.seq])
-            }
         }
     }
 
-    console.log(ts(), '←', { v, key, nonce, body })
+    console.log(ts(), chalk.bold.blueBright(' <- '), body)
 })
 
 client.bind(PORT)
 
 function message (kind, args = {}) {
-    const message = cbor.encode({
+    const data = {
         agent: [pkg.name, pkg.version],
         id: ID,
         kind,
         ...args
-    })
+    }
+
+    const message = cbor.encode(data)
     const msg = Buffer.from(message)
 
     const nonce = crypto.randomBytes(sodium.crypto_secretbox_NONCEBYTES)
@@ -78,9 +73,12 @@ function message (kind, args = {}) {
     }))
 
     client.send(envelope, 0, envelope.length, PORT, CAST)
-    console.log(ts(), '→', message)
+    console.log(ts(), chalk.bold.magentaBright(' -> '), data)
 }
 
 function ts () {
-    return `${new Date}`.split(' ')[4]
+    const now = new Date
+    return chalk.grey(
+        `${now}`.split(' ')[4] + '.' + now.getMilliseconds()
+    )
 }

@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "cbor": "^3.0.3",
+    "chalk": "^2.3.0",
     "sodium-native": "^2.1.4"
   }
 }

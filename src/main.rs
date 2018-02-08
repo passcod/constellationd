@@ -10,10 +10,12 @@ extern crate serde_cbor;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 extern crate tokio_core;
+extern crate tokio_timer;
 
-use futures::Stream;
+use futures::{Future, Stream};
 use gossip::{Caster, Message};
 use statics::id;
+use std::time::Duration;
 use tokio_core::reactor::Core;
 
 mod config;
@@ -21,6 +23,12 @@ mod constants;
 mod gossip;
 mod keygen;
 mod statics;
+
+#[derive(Debug)]
+enum StreamError {
+    Io(std::io::Error),
+    Timer(tokio_timer::TimerError),
+}
 
 fn main() {
     println!("{} v{}\nID: {}",
@@ -44,6 +52,17 @@ fn main() {
     let writer = Caster::new().expect("Failed to bind UDP");
     writer.send(&Message::hello()).expect("Failed to send hello");
 
+    let timer = tokio_timer::Timer::default();
+
+    // Send pings
+    let pinger = timer.interval(Duration::new(10, 0)).for_each(|()| {
+        let _ = writer.send(&Message::ping());
+        Ok(())
+    }).map_err(|err| {
+        println!("Timer error: {}", err);
+        StreamError::Timer(err)
+    });
+
     let server = reader.for_each(|msg| {
         // Ignore empty (errored) messages
         let msg = match msg {
@@ -56,18 +75,21 @@ fn main() {
             return Ok(())
         }
 
-        // Answer pings
+        // Record pings
         if msg.kind.is_ping() {
-            if let Err(err) = writer.send(
-                &Message::pong(msg.seq.unwrap())
-            ) {
-                println!("Failed send: {:?}", err);
-            }
+            println!("Got a ping from {}!", msg.id);
         }
 
         println!("{:?}", msg);
         Ok(())
+    }).map_err(|err| {
+        println!("Server error: {}", err);
+        StreamError::Io(err)
     });
 
-    core.run(server).expect("Failed to start UDP server");
+    if let Err(_) = core.run(
+        server.select(pinger)
+    ) {
+        println!("Failed to start UDP server");
+    }
 }
