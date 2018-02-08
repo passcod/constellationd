@@ -13,22 +13,17 @@ extern crate tokio_core;
 extern crate tokio_timer;
 
 use futures::{Future, Stream};
-use gossip::{Caster, Message};
+use gossip::{Gossip, Message};
 use statics::id;
 use std::time::Duration;
 use tokio_core::reactor::Core;
 
 mod config;
 mod constants;
+mod errors;
 mod gossip;
 mod keygen;
 mod statics;
-
-#[derive(Debug)]
-enum StreamError {
-    Io(std::io::Error),
-    Timer(tokio_timer::TimerError),
-}
 
 fn main() {
     println!("{} v{}\nID: {}",
@@ -45,12 +40,8 @@ fn main() {
 
     let mut core = Core::new().expect("Failed to initialise event loop");
     let handle = core.handle();
-
-    let reader = Caster::new().expect("Failed to bind UDP")
-        .framed(&handle).expect("Failed to frame");
-
-    let writer = Caster::new().expect("Failed to bind UDP");
-    writer.send(&Message::hello()).expect("Failed to send hello");
+    let gossip = Gossip::init(&handle).expect("Failed to initialise gossip");
+    let writer = gossip.writer.clone();
 
     let timer = tokio_timer::Timer::default();
 
@@ -60,35 +51,12 @@ fn main() {
         Ok(())
     }).map_err(|err| {
         println!("Timer error: {}", err);
-        StreamError::Timer(err)
+        errors::StreamError::Timer(err)
     });
 
-    let server = reader.for_each(|msg| {
-        // Ignore empty (errored) messages
-        let msg = match msg {
-            None => return Ok(()),
-            Some(m) => m
-        };
-
-        // Ignore own messages
-        if &msg.id == id() {
-            return Ok(())
-        }
-
-        // Record pings
-        if msg.kind.is_ping() {
-            println!("Got a ping from {}!", msg.id);
-        }
-
-        println!("{:?}", msg);
-        Ok(())
-    }).map_err(|err| {
-        println!("Server error: {}", err);
-        StreamError::Io(err)
-    });
-
+    writer.send(&Message::hello()).expect("Failed to send hello");
     if let Err(_) = core.run(
-        server.select(pinger)
+        pinger.select(gossip.server)
     ) {
         println!("Failed to start UDP server");
     }
