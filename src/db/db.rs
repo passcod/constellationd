@@ -8,23 +8,14 @@ use tempdir::TempDir;
 #[derive(Clone, Debug)]
 pub struct Db<'a, F: 'a + Deserialize<'a> + Serialize> {
     phantom: PhantomData<&'a F>,
-    tree: Tree,
+    tree: &'static Tree,
 }
 
-pub fn ro<'a, F: Deserialize<'a> + Serialize>() -> DbResult<Db<'a, F>, ()> {
-    let config = config().clone().read_only(true).build();
-    Tree::start(config).map(|t| Db {
+pub fn open<'a, F: Deserialize<'a> + Serialize>() -> Db<'a, F> {
+    Db {
         phantom: PhantomData,
-        tree: t,
-    })
-}
-
-pub fn rw<'a, F: Deserialize<'a> + Serialize>() -> DbResult<Db<'a, F>, ()> {
-    let config = config().clone().build();
-    Tree::start(config).map(|t| Db {
-        phantom: PhantomData,
-        tree: t,
-    })
+        tree: config(),
+    }
 }
 
 impl<'a, F: Deserialize<'a> + Serialize> Db<'a, F> {
@@ -60,17 +51,17 @@ impl<'a, F: Deserialize<'a> + Serialize> Db<'a, F> {
     }
 }
 
-fn config() -> &'static ConfigBuilder {
+fn config() -> &'static Tree {
     lazy_static! {
-        static ref DB_CONFIG: ConfigBuilder = {
-            let db = ConfigBuilder::new().use_compression(true);
-
-            if let Some(ref path) = statics::config().persistent {
-                db.path(path)
-            } else {
-                let tmp = TempDir::new(&statics::key()).expect("Cannot create temporary db");
-                db.path(tmp).temporary(true)
-            }
+        static ref DB_CONFIG: Tree = {
+            Tree::start(ConfigBuilder::new()
+            .use_compression(true)
+            .path(statics::config().persistent.clone().unwrap_or_else(||
+                TempDir::new(&statics::key())
+                .expect("Cannot create temporary db")
+                .path().to_path_buf()
+            )).build())
+            .expect("Cannot create db")
         };
     }
 

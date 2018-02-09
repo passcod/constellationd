@@ -47,9 +47,17 @@ fn server(msg: Option<Message>) -> io::Result<()> {
 
     // Record pings
     if msg.kind.is_ping() {
-        let db = db::rw().unwrap();
-        let _ = db.set(&msg.id, &Neighbour::default());
-        println!("Got a ping from {}!", msg.id);
+        let db = db::open::<Neighbour>();
+        let n = if let Ok(Some(mut n)) = db.get(&msg.id) {
+            n.seen();
+            n
+        } else {
+            Neighbour::default()
+        };
+        let _ = db.set(&msg.id, &n);
+        println!("Got a ping from {}!\nFirst seen: {:?}\nLast Seen: {:?}",
+            msg.id, n.first_seen, n.last_seen
+        );
     }
 
     println!("{:?}", msg);
