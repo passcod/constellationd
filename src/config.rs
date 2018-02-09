@@ -5,11 +5,15 @@ use rust_sodium::crypto::secretbox::{gen_key};
 use serde_json;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct Config {
     pub key: String,
     pub secret: Vec<u8>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persistent: Option<PathBuf>,
 }
 
 impl Config {
@@ -54,6 +58,7 @@ impl Default for Config {
         Config {
             key: encode_config(&randombytes(16), URL_SAFE_NO_PAD),
             secret: gen_key()[..].to_vec(),
+            persistent: None,
         }
     }
 }
