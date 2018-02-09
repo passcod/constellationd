@@ -1,3 +1,4 @@
+use db::{self, Neighbour};
 use errors::StreamError;
 use futures::{Future, MapErr, Stream};
 use futures::stream::ForEach;
@@ -46,6 +47,8 @@ fn server(msg: Option<Message>) -> io::Result<()> {
 
     // Record pings
     if msg.kind.is_ping() {
+        let db = db::rw().unwrap();
+        let _ = db.set(&msg.id, &Neighbour::default());
         println!("Got a ping from {}!", msg.id);
     }
 

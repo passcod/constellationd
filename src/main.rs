@@ -9,6 +9,8 @@ extern crate serde_bytes;
 extern crate serde_cbor;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
+extern crate sled;
+extern crate tempdir;
 extern crate tokio_core;
 extern crate tokio_timer;
 
@@ -20,6 +22,7 @@ use tokio_core::reactor::Core;
 
 mod config;
 mod constants;
+mod db;
 mod errors;
 mod gossip;
 mod keygen;
@@ -40,6 +43,7 @@ fn main() {
 
     let mut core = Core::new().expect("Failed to initialise event loop");
     let handle = core.handle();
+
     let gossip = Gossip::init(&handle).expect("Failed to initialise gossip");
     let writer = gossip.writer.clone();
 
