@@ -6,16 +6,16 @@ use statics;
 use super::Message;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
-pub struct Envelope {
+pub struct Envelope<'a> {
     pub v: u8,
-    pub key: String,
+    pub key: &'a str,
     pub nonce: Nonce,
 
     #[serde(with = "serde_bytes")]
     pub body: Vec<u8>,
 }
 
-impl Envelope {
+impl<'a> Envelope<'a> {
     pub fn new(msg: &Message) -> Self {
         let nonce = gen_nonce();
         let ser = serde_cbor::to_vec(&msg).expect("Unable to encode message");
@@ -23,7 +23,7 @@ impl Envelope {
 
         Envelope {
             v: constants::PROTOCOL_VERSION,
-            key: statics::key().clone(),
+            key: statics::key(),
             nonce: nonce,
             body: body,
         }
@@ -40,7 +40,7 @@ impl Envelope {
         serde_cbor::to_vec(&self)
     }
 
-    pub fn unpack(buf: &[u8]) -> Option<Self> {
+    pub fn unpack(buf: &'a [u8]) -> Option<Self> {
         match serde_cbor::from_slice(buf) {
             Err(err) => {
                 println!("Bad cbor: {:?}\n{:?}", buf, err);
@@ -55,7 +55,7 @@ impl Envelope {
             return false;
         }
 
-        if &self.key != statics::key() {
+        if self.key != statics::key() {
             return false;
         }
 

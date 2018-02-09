@@ -21,14 +21,8 @@ pub fn id() -> &'static String {
 /// encryption, but for efficiency and inspection ease, we use a "key" that
 /// is attached to every gossip message in plain, and used to filter messages
 /// (i.e. discard those that don't match).
-pub fn key() -> &'static String {
-    lazy_static! {
-        static ref KEY: String = {
-            config().key.clone()
-        };
-    }
-
-    &KEY
+pub fn key() -> &'static str {
+    &config().key
 }
 
 /// The cluster secret, encrypting all gossip.
