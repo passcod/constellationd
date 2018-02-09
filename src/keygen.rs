@@ -20,6 +20,6 @@ pub fn main() {
     }
 
     println!("Writing new config to {}", constants::CONFIG_FILE);
-    Config::generate().to_file();
+    Config::default().to_file();
     exit(0);
 }

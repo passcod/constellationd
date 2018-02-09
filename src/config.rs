@@ -42,16 +42,18 @@ impl Config {
         }
     }
 
-    pub fn generate() -> Self {
-        Config {
-            key: encode_config(&randombytes(16), URL_SAFE_NO_PAD),
-            secret: gen_key()[..].to_vec()
-        }
-    }
-
     pub fn to_file(&self) {
         let ser = serde_json::to_vec(&self).expect("Unable to encode config");
         let mut file = File::create(constants::CONFIG_FILE).expect("Couldn't open config file");
         file.write_all(&ser).expect("Couldn't write config to file");
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            key: encode_config(&randombytes(16), URL_SAFE_NO_PAD),
+            secret: gen_key()[..].to_vec(),
+        }
     }
 }
