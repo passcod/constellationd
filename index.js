@@ -24,7 +24,7 @@ client.on('listening', () => {
   client.addMembership(CAST)
   message('Hello')
   setInterval(() => {
-      message('Ping')
+      message('Hello')
   }, 10000)
 })
 
@@ -45,7 +45,15 @@ client.on('message', (message, remote) => {
         }
     }
 
-    console.log(ts(), chalk.bold.blueBright(' <- '), body)
+    const len = message.length
+    console.log(ts(),
+        chalk.bold.blueBright(' <- '),
+        chalk[
+            len < 512 ? 'green' :
+            (len > 42000 ? 'red' : 'yellow')
+        ](`${len} bytes`),
+        JSON.stringify(body)
+    )
 })
 
 client.bind(PORT)
@@ -54,8 +62,7 @@ function message (kind, args = {}) {
     const data = {
         agent: [pkg.name, pkg.version],
         id: ID,
-        kind,
-        ...args
+        body: [ kind, args ]
     }
 
     const message = cbor.encode(data)
