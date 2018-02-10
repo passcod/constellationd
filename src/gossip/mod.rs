@@ -9,3 +9,4 @@ pub mod codec;
 pub mod gossip;
 pub mod envelope;
 pub mod message;
+pub mod server;
