@@ -1,6 +1,8 @@
 extern crate base64;
 extern crate bytes;
 extern crate futures;
+extern crate itertools;
+extern crate interfaces;
 #[macro_use]
 extern crate lazy_static;
 extern crate net2;
@@ -57,7 +59,7 @@ fn main() {
     let mut ping_sender = gossip.sender.clone();
     let timer = tokio_timer::Timer::default();
     let pinger = timer.interval(Duration::new(10, 0)).for_each(move |_| {
-        let _ = ping_sender.try_send(Message::ping());
+        let _ = ping_sender.try_send(Message::hello());
         Ok(())
     });
 

@@ -39,8 +39,8 @@ fn server(msg: Message) -> io::Result<()> {
         return Ok(())
     }
 
-    // Record pings
-    if msg.kind.is_ping() {
+    // Record hellos
+    if msg.is_hello() {
         let db = db::open::<Neighbour>();
         let n = if let Ok(Some(mut n)) = db.get(&msg.id) {
             n.seen();
