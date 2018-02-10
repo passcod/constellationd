@@ -30,6 +30,14 @@ mod gossip;
 mod keygen;
 mod statics;
 
+macro_rules! plumb {
+    ($label:expr, $future:expr) => ({
+        $future
+        .map(|thing| {println!("{} map {:?}", $label, thing);})
+        .map_err(|thing| {println!("{} err {:?}", $label, thing);})
+    })
+}
+
 fn main() {
     println!("{} v{}\nID: {}",
         env!("CARGO_PKG_NAME"),
@@ -43,22 +51,19 @@ fn main() {
 
     keygen::main();
 
-    let gossip = Gossip::init().expect("Failed to initialise gossip");
-    let writer = gossip.writer.clone();
-    writer.send(&Message::hello()).expect("Failed to send hello");
+    let mut gossip = Gossip::init().expect("Failed to initialise gossip");
+    gossip.sender.try_send(Message::hello()).expect("Failed to send hello");
 
+    let mut ping_sender = gossip.sender.clone();
     let timer = tokio_timer::Timer::default();
-    let pinger = timer.interval(Duration::new(10, 0))
-    .for_each(move |_| {
-        let _ = writer.send(&Message::ping());
+    let pinger = timer.interval(Duration::new(10, 0)).for_each(move |_| {
+        let _ = ping_sender.try_send(Message::ping());
         Ok(())
-    }).map_err(|err| {
-        println!("Timer error: {}", err);
-        ()
     });
 
     current_thread::run(|_| {
-        current_thread::spawn(pinger);
-        current_thread::spawn(gossip.server);
+        current_thread::spawn(plumb!("pinger", pinger));
+        current_thread::spawn(plumb!("gossip.server", gossip.server));
+        current_thread::spawn(plumb!("gossip.writer", gossip.writer));
     })
 }

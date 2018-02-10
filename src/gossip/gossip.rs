@@ -1,46 +1,39 @@
 use db::{self, Neighbour};
-use futures::{Future, MapErr, Stream};
-use futures::stream::ForEach;
-use tokio::net::UdpFramed;
+use futures::Stream;
+use futures::stream::{Forward, ForEach, SplitSink, SplitStream};
+use futures::sync::mpsc::{channel, Sender, Receiver};
 use statics::id;
 use std::io;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use super::{Caster, GossipCodec, Message};
+use super::{Caster, Message};
 
 pub struct Gossip<'a> {
-    pub server: MapErr<ForEach<
-        UdpFramed<GossipCodec>,
+    pub server: ForEach<
+        SplitStream<Caster>,
         &'a ServerFn,
         io::Result<()>
-    >, &'a ErrorFn>,
-    pub writer: Arc<Caster>,
+    >,
+    pub writer: Forward<
+        Receiver<Message>,
+        SplitSink<Caster>
+    >,
+    pub sender: Sender<Message>,
 }
 
 impl<'a> Gossip<'a> {
     pub fn init() -> io::Result<Self> {
-        let reader = Caster::new()?.framed()?;
-        let writer = Caster::new()?;
+        let (writer, reader) = Caster::new()?.split();
+        let (tx, rx) = channel(100);
 
         Ok(Self {
-            server: reader
-                .for_each(&server as &ServerFn)
-                .map_err(&error as &ErrorFn),
-            writer: Arc::new(writer)
+            server: reader.for_each(&server as &ServerFn),
+            writer: rx.forward(writer),
+            sender: tx,
         })
     }
 }
 
-type ServerFn = (Fn((Option<Message>, SocketAddr)) -> io::Result<()>);
-fn server(inbound: (Option<Message>, SocketAddr)) -> io::Result<()> {
-    let (msg, addr) = inbound;
-
-    // Ignore empty (errored) messages
-    let msg = match msg {
-        None => return Ok(()),
-        Some(m) => m
-    };
-
+type ServerFn = Fn(Message) -> io::Result<()>;
+fn server(msg: Message) -> io::Result<()> {
     // Ignore own messages
     if &msg.id == id() {
         return Ok(())
@@ -56,17 +49,11 @@ fn server(inbound: (Option<Message>, SocketAddr)) -> io::Result<()> {
             Neighbour::default()
         };
         let _ = db.set(&msg.id, &n);
-        println!("Got a ping from {} ({})!\nFirst seen: {:?}\nLast Seen: {:?}",
-            msg.id, addr, n.first_seen, n.last_seen
+        println!("Got a ping from {}!\nFirst seen: {:?}\nLast Seen: {:?}",
+            msg.id, n.first_seen, n.last_seen
         );
     }
 
     println!("{:?}", msg);
     Ok(())
-}
-
-type ErrorFn = (Fn(io::Error) -> ());
-fn error(err: io::Error) -> () {
-    println!("Server error: {}", err);
-    ()
 }

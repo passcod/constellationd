@@ -5,6 +5,7 @@ use tokio_io::codec::{Decoder, Encoder};
 
 use super::{Envelope, Message};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GossipCodec;
 
 impl Decoder for GossipCodec {

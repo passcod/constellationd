@@ -1,20 +1,19 @@
 use constants::*;
-use errors::SendError;
+use futures::{Async, AsyncSink, Poll, Sink, StartSend, Stream};
 use net2::UdpBuilder;
 use net2::unix::UnixUdpBuilderExt;
 use std::io;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::SocketAddr;
 use std::str::FromStr;
-use super::Envelope;
-use super::GossipCodec;
-use super::Message;
+use super::{GossipCodec, Message};
 use tokio::net::{UdpFramed, UdpSocket as TokioUdp};
 use tokio::reactor::Handle;
+use tokio_io::codec::{Decoder, Encoder};
 
 #[derive(Debug)]
 pub struct Caster {
     cast: SocketAddr,
-    socket: UdpSocket,
+    socket: UdpFramed<GossipCodec>,
 }
 
 impl Caster {
@@ -31,21 +30,40 @@ impl Caster {
 
         Ok(Self {
             cast: SocketAddr::from_str(CAST).unwrap(),
-            socket: sock,
+            socket: UdpFramed::new(
+                TokioUdp::from_std(sock, &Handle::default())?,
+                GossipCodec
+            ),
+        })
+    }
+}
+
+impl Sink for Caster {
+    type SinkItem = <GossipCodec as Encoder>::Item;
+    type SinkError = <GossipCodec as Encoder>::Error;
+
+    fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        self.socket.start_send((item, self.cast.clone())).map(|async| match async {
+            AsyncSink::NotReady((item, _)) => AsyncSink::NotReady(item),
+            AsyncSink::Ready => AsyncSink::Ready,
         })
     }
 
-    pub fn framed(self) -> io::Result<UdpFramed<GossipCodec>> {
-        TokioUdp::from_std(self.socket, &Handle::default())
-        .map(|u| UdpFramed::new(u, GossipCodec))
+    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        self.socket.poll_complete()
     }
+}
 
-    pub fn send(&self, message: &Message) -> Result<usize, SendError> {
-        Envelope::new(message)
-        .pack().map_err(|err| SendError::Encode(err))
-        .and_then(|buf|
-            self.socket.send_to(&buf, &self.cast)
-            .map_err(|err| SendError::Io(err))
-        )
+impl Stream for Caster {
+    type Item = Message;
+    type Error = <GossipCodec as Decoder>::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.socket.poll().map(|async| match async {
+            Async::Ready(Some((Some(item), _))) => Async::Ready(Some(item)),
+            Async::Ready(Some((None, _))) => Async::Ready(None),
+            Async::Ready(None) => Async::Ready(None),
+            Async::NotReady => Async::NotReady,
+        })
     }
 }

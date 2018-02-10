@@ -7,6 +7,10 @@ pub enum SendError {
     Encode(CborError),
 }
 
+impl From<SendError> for () {
+    fn from(_: SendError) {}
+}
+
 impl From<IoError> for SendError {
     fn from(err: IoError) -> Self {
         SendError::Io(err)
