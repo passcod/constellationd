@@ -8,8 +8,8 @@ use std::str::FromStr;
 use super::Envelope;
 use super::GossipCodec;
 use super::Message;
-use tokio_core::net::{UdpFramed, UdpSocket as TokioUdp};
-use tokio_core::reactor::Handle;
+use tokio::net::{UdpFramed, UdpSocket as TokioUdp};
+use tokio::reactor::Handle;
 
 #[derive(Debug)]
 pub struct Caster {
@@ -26,7 +26,7 @@ impl Caster {
 
         sock.set_broadcast(true)?;
         sock.set_multicast_loop_v4(true)?;
-        sock.set_multicast_ttl_v4(1)?; // Set higher to reach outside local
+        sock.set_multicast_ttl_v4(128)?;
         sock.join_multicast_v4(&MULTI.into(), &ANY.into())?;
 
         Ok(Self {
@@ -35,9 +35,9 @@ impl Caster {
         })
     }
 
-    pub fn framed(self, handle: &Handle) -> io::Result<UdpFramed<GossipCodec>> {
-        TokioUdp::from_socket(self.socket, handle)
-        .map(|s| s.framed(GossipCodec))
+    pub fn framed(self) -> io::Result<UdpFramed<GossipCodec>> {
+        TokioUdp::from_std(self.socket, &Handle::default())
+        .map(|u| UdpFramed::new(u, GossipCodec))
     }
 
     pub fn send(&self, message: &Message) -> Result<usize, SendError> {

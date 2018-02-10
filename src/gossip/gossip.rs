@@ -1,11 +1,10 @@
 use db::{self, Neighbour};
-use errors::StreamError;
 use futures::{Future, MapErr, Stream};
 use futures::stream::ForEach;
-use tokio_core::reactor::Handle;
-use tokio_core::net::UdpFramed;
+use tokio::net::UdpFramed;
 use statics::id;
 use std::io;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use super::{Caster, GossipCodec, Message};
 
@@ -19,8 +18,8 @@ pub struct Gossip<'a> {
 }
 
 impl<'a> Gossip<'a> {
-    pub fn init(handle: &Handle) -> io::Result<Self> {
-        let reader = Caster::new()?.framed(handle)?;
+    pub fn init() -> io::Result<Self> {
+        let reader = Caster::new()?.framed()?;
         let writer = Caster::new()?;
 
         Ok(Self {
@@ -32,8 +31,10 @@ impl<'a> Gossip<'a> {
     }
 }
 
-type ServerFn = (Fn(Option<Message>) -> io::Result<()>);
-fn server(msg: Option<Message>) -> io::Result<()> {
+type ServerFn = (Fn((Option<Message>, SocketAddr)) -> io::Result<()>);
+fn server(inbound: (Option<Message>, SocketAddr)) -> io::Result<()> {
+    let (msg, addr) = inbound;
+
     // Ignore empty (errored) messages
     let msg = match msg {
         None => return Ok(()),
@@ -55,8 +56,8 @@ fn server(msg: Option<Message>) -> io::Result<()> {
             Neighbour::default()
         };
         let _ = db.set(&msg.id, &n);
-        println!("Got a ping from {}!\nFirst seen: {:?}\nLast Seen: {:?}",
-            msg.id, n.first_seen, n.last_seen
+        println!("Got a ping from {} ({})!\nFirst seen: {:?}\nLast Seen: {:?}",
+            msg.id, addr, n.first_seen, n.last_seen
         );
     }
 
@@ -64,8 +65,8 @@ fn server(msg: Option<Message>) -> io::Result<()> {
     Ok(())
 }
 
-type ErrorFn = (Fn(io::Error) -> StreamError);
-fn error(err: io::Error) -> StreamError {
+type ErrorFn = (Fn(io::Error) -> ());
+fn error(err: io::Error) -> () {
     println!("Server error: {}", err);
-    StreamError::Io(err)
+    ()
 }

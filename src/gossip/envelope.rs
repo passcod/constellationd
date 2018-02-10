@@ -40,13 +40,16 @@ impl<'a> Envelope<'a> {
         serde_cbor::to_vec(&self)
     }
 
-    pub fn unpack(buf: &'a [u8]) -> Option<Self> {
+    pub fn unpack(buf: &'a [u8]) -> Result<Option<Self>, ()> {
         match serde_cbor::from_slice(buf) {
             Err(err) => {
-                println!("Bad cbor: {:?}\n{:?}", buf, err);
-                None
+                if format!("{:?}", err).starts_with("ErrorImpl { code: EofWhileParsing") {
+                    Err(()) // incomplete input
+                } else {
+                    Ok(None) // bad data
+                }
             },
-            Ok(e) => Some(e)
+            Ok(e) => Ok(Some(e))
         }
     }
 

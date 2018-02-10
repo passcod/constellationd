@@ -1,4 +1,5 @@
 extern crate base64;
+extern crate bytes;
 extern crate futures;
 #[macro_use]
 extern crate lazy_static;
@@ -11,14 +12,15 @@ extern crate serde_cbor;
 extern crate serde_json;
 extern crate sled;
 extern crate tempdir;
-extern crate tokio_core;
+extern crate tokio;
+extern crate tokio_io;
 extern crate tokio_timer;
 
 use futures::{Future, Stream};
 use gossip::{Gossip, Message};
 use statics::id;
 use std::time::Duration;
-use tokio_core::reactor::Core;
+use tokio::executor::current_thread;
 
 mod config;
 mod constants;
@@ -41,27 +43,22 @@ fn main() {
 
     keygen::main();
 
-    let mut core = Core::new().expect("Failed to initialise event loop");
-    let handle = core.handle();
-
-    let gossip = Gossip::init(&handle).expect("Failed to initialise gossip");
+    let gossip = Gossip::init().expect("Failed to initialise gossip");
     let writer = gossip.writer.clone();
+    writer.send(&Message::hello()).expect("Failed to send hello");
 
     let timer = tokio_timer::Timer::default();
-
-    // Send pings
-    let pinger = timer.interval(Duration::new(10, 0)).for_each(|()| {
+    let pinger = timer.interval(Duration::new(10, 0))
+    .for_each(move |_| {
         let _ = writer.send(&Message::ping());
         Ok(())
     }).map_err(|err| {
         println!("Timer error: {}", err);
-        errors::StreamError::Timer(err)
+        ()
     });
 
-    writer.send(&Message::hello()).expect("Failed to send hello");
-    if let Err(_) = core.run(
-        pinger.select(gossip.server)
-    ) {
-        println!("Failed to start UDP server");
-    }
+    current_thread::run(|_| {
+        current_thread::spawn(pinger);
+        current_thread::spawn(gossip.server);
+    })
 }
