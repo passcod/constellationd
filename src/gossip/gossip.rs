@@ -4,7 +4,7 @@ use futures::stream::{Forward, ForEach, SplitSink, SplitStream};
 use futures::sync::mpsc::{channel, Sender, Receiver};
 use statics::id;
 use std::io;
-use super::{Caster, Message};
+use super::{Caster, Message, MessageBody};
 
 pub struct Gossip<'a> {
     pub server: ForEach<
@@ -40,14 +40,17 @@ fn server(msg: Message) -> io::Result<()> {
     }
 
     // Record hellos
-    if msg.is_hello() {
+    if let &MessageBody::Hello(ref hello) = &msg.body {
         let db = db::open::<Neighbour>();
-        let n = if let Ok(Some(mut n)) = db.get(&msg.id) {
-            n.seen();
+        let mut n = if let Ok(Some(mut n)) = db.get(&msg.id) {
             n
         } else {
             Neighbour::default()
         };
+
+        n.seen();
+        n.last_hello = Some(hello.clone());
+
         let _ = db.set(&msg.id, &n);
         println!("Got a ping from {}!\nFirst seen: {:?}\nLast Seen: {:?}",
             msg.id, n.first_seen, n.last_seen

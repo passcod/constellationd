@@ -50,7 +50,7 @@ client.on('message', (message, remote) => {
         chalk.bold.blueBright(' <- '),
         chalk[
             len < 512 ? 'green' :
-            (len > 42000 ? 'red' : 'yellow')
+            (len > 1200 ? 'red' : 'yellow')
         ](`${len} bytes`),
         JSON.stringify(body)
     )

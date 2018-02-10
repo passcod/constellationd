@@ -1,9 +1,11 @@
+use gossip::message::Hello;
 use std::time::SystemTime;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Neighbour {
     pub first_seen: SystemTime,
     pub last_seen: SystemTime,
+    pub last_hello: Option<Hello>,
 }
 
 impl Default for Neighbour {
@@ -11,6 +13,7 @@ impl Default for Neighbour {
         Self {
             first_seen: SystemTime::now(),
             last_seen: SystemTime::now(),
+            last_hello: None
         }
     }
 }
