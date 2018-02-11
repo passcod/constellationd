@@ -1,7 +1,6 @@
 extern crate base64;
 extern crate bytes;
 extern crate futures;
-extern crate hyper;
 extern crate itertools;
 extern crate interfaces;
 #[macro_use]
@@ -69,5 +68,6 @@ fn main() {
         current_thread::spawn(plumb!("pinger", pinger));
         current_thread::spawn(plumb!("gossip.server", gossip.server));
         current_thread::spawn(plumb!("gossip.writer", gossip.writer));
+        current_thread::spawn(plumb!("operator", operator::server()));
     })
 }
