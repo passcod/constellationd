@@ -1,6 +1,7 @@
 extern crate base64;
 extern crate bytes;
 extern crate futures;
+extern crate hyper;
 extern crate itertools;
 extern crate interfaces;
 #[macro_use]
@@ -30,6 +31,7 @@ mod db;
 mod errors;
 mod gossip;
 mod keygen;
+mod operator;
 mod statics;
 
 macro_rules! plumb {
