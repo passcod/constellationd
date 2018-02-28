@@ -3,8 +3,7 @@ extern crate bytes;
 extern crate futures;
 extern crate itertools;
 extern crate interfaces;
-#[macro_use]
-extern crate lazy_static;
+#[macro_use] extern crate lazy_static;
 extern crate net2;
 extern crate rust_sodium;
 extern crate serde;
