@@ -30,4 +30,4 @@ pub const CONFIG_FILE: &'static str = "constellationd.json";
 pub const MULTI: [u8; 4] = [224, 0, 247, 51];
 
 /// The version of the protocol.
-pub const PROTOCOL_VERSION: u8 = 0;
+pub const PROTOCOL_VERSION: u8 = 1;

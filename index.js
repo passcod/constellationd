@@ -32,7 +32,7 @@ client.on('message', (message, remote) => {
     const msg = cbor.decode(message)
     try {
         var { v, key, nonce, body } = msg
-        if (v !== 0) throw new Error('Wrong version')
+        if (v !== 1) throw new Error('Wrong version')
         if (key !== KEY) throw new Error('Wrong key')
     } catch (err) {
         return console.log('←', message)
@@ -73,7 +73,7 @@ function message (kind, args = {}) {
     sodium.crypto_secretbox_easy(cipher, msg, nonce, SECRET)
 
     const envelope = Buffer.from(cbor.encode({
-        v: 0,
+        v: 1,
         key: KEY,
         nonce,
         body: cipher,
