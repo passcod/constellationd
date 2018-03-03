@@ -1,4 +1,4 @@
-use gossip::message::Hello;
+use message::Hello;
 use std::time::SystemTime;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

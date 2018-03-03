@@ -1,6 +1,6 @@
 use statics::id;
 use std::io;
-use super::{Message, MessageBody};
+use message::{Message, Body};
 
 mod hello;
 
@@ -12,7 +12,7 @@ pub fn server(msg: Message) -> io::Result<()> {
     }
 
     // Record hellos
-    if let &MessageBody::Hello(ref hello) = &msg.body {
+    if let &Body::Hello(ref hello) = &msg.body {
         hello::serve(&msg, hello);
     }
 

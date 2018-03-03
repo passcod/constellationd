@@ -8,8 +8,7 @@ use tokio::executor::current_thread;
 use tokio::net::{Incoming, TcpListener, TcpStream};
 use tokio_io::{io as tio, AsyncRead};
 
-mod codec;
-mod envelope;
+use super::envelope::EnvelopeCodec;
 
 pub fn server<'a>() -> MapErr<ForEach<
     Incoming,
@@ -27,7 +26,7 @@ pub fn server<'a>() -> MapErr<ForEach<
 type ServerFn = Fn(TcpStream) -> io::Result<()>;
 fn handle(tcp: TcpStream) -> io::Result<()> {
     // Split up the read and write halves
-    let (reader, mut writer) = tcp.framed(codec::OperatorCodec::default()).split();
+    let (reader, mut writer) = tcp.framed(EnvelopeCodec::default()).split();
 
     println!("Got a connection");
     // writer.write(b"Hi there");

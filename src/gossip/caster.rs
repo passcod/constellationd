@@ -5,15 +5,15 @@ use net2::unix::UnixUdpBuilderExt;
 use std::io;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use super::{GossipCodec, Message};
+use message::Message;
+use envelope::EnvelopeCodec;
 use tokio::net::{UdpFramed, UdpSocket as TokioUdp};
 use tokio::reactor::Handle;
-use tokio_io::codec::{Decoder, Encoder};
 
 #[derive(Debug)]
 pub struct Caster {
     cast: SocketAddr,
-    socket: UdpFramed<GossipCodec>,
+    socket: UdpFramed<EnvelopeCodec>,
 }
 
 impl Caster {
@@ -32,15 +32,15 @@ impl Caster {
             cast: SocketAddr::from_str(CAST).unwrap(),
             socket: UdpFramed::new(
                 TokioUdp::from_std(sock, &Handle::default())?,
-                GossipCodec
+                EnvelopeCodec::default()
             ),
         })
     }
 }
 
 impl Sink for Caster {
-    type SinkItem = <GossipCodec as Encoder>::Item;
-    type SinkError = <GossipCodec as Encoder>::Error;
+    type SinkItem = Message;
+    type SinkError = io::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
         self.socket.start_send((item, self.cast.clone())).map(|async| match async {
@@ -56,12 +56,11 @@ impl Sink for Caster {
 
 impl Stream for Caster {
     type Item = Message;
-    type Error = <GossipCodec as Decoder>::Error;
+    type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         self.socket.poll().map(|async| match async {
-            Async::Ready(Some((Some(item), _))) => Async::Ready(Some(item)),
-            Async::Ready(Some((None, _))) => Async::Ready(None),
+            Async::Ready(Some((item, _))) => Async::Ready(Some(item)),
             Async::Ready(None) => Async::Ready(None),
             Async::NotReady => Async::NotReady,
         })

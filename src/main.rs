@@ -18,7 +18,8 @@ extern crate tokio_io;
 extern crate tokio_timer;
 
 use futures::{Future, Stream};
-use gossip::{Gossip, Message};
+use gossip::Gossip;
+use message::Message;
 use statics::id;
 use std::time::Duration;
 use tokio::executor::current_thread;
@@ -26,9 +27,11 @@ use tokio::executor::current_thread;
 mod config;
 mod constants;
 mod db;
+mod envelope;
 mod errors;
 mod gossip;
 mod keygen;
+mod message;
 // mod operator;
 mod statics;
 

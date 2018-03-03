@@ -1,17 +1,14 @@
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use constants;
-use errors::SendError;
+use message::Message;
 use rust_sodium::crypto::secretbox::{gen_nonce, open, Nonce, seal};
 use serde_cbor;
 use statics;
-use std::slice::Iter;
 use std::io;
 use tokio_io::codec::{Decoder, Encoder};
 
-use super::envelope::Envelope;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OperatorCodec {
+pub struct EnvelopeCodec {
     header_len: Option<u8>,
     nonce: Option<Nonce>,
     payload_len: Option<usize>,
@@ -20,7 +17,7 @@ pub struct OperatorCodec {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 struct Header (String, Nonce, usize);
 
-impl Default for OperatorCodec {
+impl Default for EnvelopeCodec {
     fn default() -> Self {
         Self {
             header_len: None,
@@ -63,7 +60,7 @@ fn take_header(buf: &BytesMut, length: u8) -> Result<Option<Header>, io::Error> 
         return Ok(None);
     }
 
-    return match serde_cbor::from_slice(hbuf) {
+    match serde_cbor::from_slice(hbuf) {
         Err(err) => {
             let serr = format!("{:?}", err);
             if serr.starts_with("ErrorImpl { code: EofWhileParsing") {
@@ -74,11 +71,11 @@ fn take_header(buf: &BytesMut, length: u8) -> Result<Option<Header>, io::Error> 
             }
         },
         Ok(e) => Ok(Some(e))
-    };
+    }
 }
 
-impl Decoder for OperatorCodec {
-    type Item = Vec<u8>;
+impl Decoder for EnvelopeCodec {
+    type Item = Message;
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -131,26 +128,56 @@ impl Decoder for OperatorCodec {
             return Ok(None); // just checking...
         }
 
-        match open(pbuf, &self.nonce.unwrap(), statics::secret()) {
+        let payload = match open(pbuf, &self.nonce.unwrap(), statics::secret()) {
             Err(_) => {
                 buf.clone().advance(total_expected);
-                Err(io_error("bad payload encryption".into()))
+                return Err(io_error("bad payload encryption".into()))
             },
             Ok(payload) => {
                 buf.clone().advance(total_expected);
-                Ok(Some(payload))
+                payload
             }
+        };
+
+        match serde_cbor::from_slice(&payload) {
+            Err(err) => Err(io_error(format!("{}", err))),
+            Ok(m) => Ok(Some(m))
         }
     }
 }
 
-impl Encoder for OperatorCodec {
-    type Item = Vec<u8>;
-    type Error = SendError;
+impl Encoder for EnvelopeCodec {
+    type Item = Message;
+    type Error = io::Error;
 
     fn encode(&mut self, msg: Self::Item, buf: &mut BytesMut) -> Result<(), Self::Error> {
-        let ser = Envelope::new(&msg).pack()?;
-        buf.extend(ser);
+        let msg_packed = serde_cbor::to_vec(&msg).map_err(
+            |err| io::Error::new(io::ErrorKind::Other, format!("{}", err))
+        )?;
+
+        let nonce = gen_nonce();
+        let payload = seal(&msg_packed, &nonce, statics::secret());
+
+        let header = Header(statics::key().into(), nonce, payload.len());
+        let header_packed = serde_cbor::to_vec(&header).map_err(
+            |err| io::Error::new(io::ErrorKind::Other, format!("{}", err))
+        )?;
+
+        let header_len = header_packed.len();
+        let total = 2 + header_len + header.2;
+
+        let cap = buf.capacity();
+        if cap < total {
+            buf.reserve(total - cap);
+        }
+
+        assert!(buf.remaining_mut() >= total);
+
+        buf.put_u8(constants::PROTOCOL_VERSION);
+        buf.put_u8(header_len as u8);
+        buf.put(header_packed);
+        buf.put(payload);
+
         Ok(())
     }
 }

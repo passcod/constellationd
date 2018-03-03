@@ -1,24 +1,16 @@
-use serde_cbor::error::Error as CborError;
 use std::io::Error as IoError;
 
 #[derive(Debug)]
-pub enum SendError {
-    Io(IoError),
-    Encode(CborError),
-}
+pub struct IgnoredIoError(IoError);
 
-impl From<SendError> for () {
-    fn from(_: SendError) {}
-}
-
-impl From<IoError> for SendError {
-    fn from(err: IoError) -> Self {
-        SendError::Io(err)
+impl From<IgnoredIoError> for () {
+    fn from(err: IgnoredIoError) {
+        println!("ignoring error: {}", err.0);
     }
 }
 
-impl From<CborError> for SendError {
-    fn from(err: CborError) -> Self {
-        SendError::Encode(err)
+impl From<IoError> for IgnoredIoError {
+    fn from(err: IoError) -> Self {
+        IgnoredIoError(err)
     }
 }

@@ -1,5 +1,5 @@
 use db::{self, Neighbour};
-use gossip::message::{Hello, Message};
+use message::{Hello, Message};
 
 pub fn serve(msg: &Message, hello: &Hello) {
     let db = db::open::<Neighbour>();
