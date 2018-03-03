@@ -29,7 +29,7 @@ mod db;
 mod errors;
 mod gossip;
 mod keygen;
-mod operator;
+// mod operator;
 mod statics;
 
 macro_rules! plumb {
@@ -67,6 +67,6 @@ fn main() {
         current_thread::spawn(plumb!("pinger", pinger));
         current_thread::spawn(plumb!("gossip.server", gossip.server));
         current_thread::spawn(plumb!("gossip.writer", gossip.writer));
-        current_thread::spawn(plumb!("operator", operator::server()));
+        // current_thread::spawn(plumb!("operator", operator::server()));
     })
 }
