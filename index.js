@@ -29,11 +29,21 @@ client.on('listening', () => {
 })
 
 client.on('message', (message, remote) => {
-    const msg = cbor.decode(message)
     try {
-        var { v, key, nonce, body } = msg
-        if (v !== 1) throw new Error('Wrong version')
-        if (key !== KEY) throw new Error('Wrong key')
+        const v = message.readUInt8(0)
+        if (v !== 1) throw new Error('Wrong version: ' + v)
+
+        const hlen = message.readUInt8(1)
+        if (hlen < 1) throw new Error('Zero-length header')
+
+        const header = message.slice(2, 2 + hlen)
+        if (header.length < hlen) throw new Error('Bad header length: ' + header.length)
+
+        var [ key, nonce, plen ] = cbor.decode(header)
+        if (key !== KEY) throw new Error('Wrong key: ' + key)
+
+        var body = message.slice(2 + hlen, 2 + hlen + plen)
+        if (body.length < plen) throw new Error('Bad payload length: ' + body.length)
     } catch (err) {
         return console.log('←', message)
     }
@@ -69,15 +79,20 @@ function message (kind, args = {}) {
     const msg = Buffer.from(message)
 
     const nonce = crypto.randomBytes(sodium.crypto_secretbox_NONCEBYTES)
-    const cipher = Buffer.alloc(msg.length + sodium.crypto_secretbox_MACBYTES)
-    sodium.crypto_secretbox_easy(cipher, msg, nonce, SECRET)
+    const payload = Buffer.alloc(msg.length + sodium.crypto_secretbox_MACBYTES)
+    sodium.crypto_secretbox_easy(payload, msg, nonce, SECRET)
 
-    const envelope = Buffer.from(cbor.encode({
-        v: 1,
-        key: KEY,
+    const header = Buffer.from(cbor.encode([
+        KEY,
         nonce,
-        body: cipher,
-    }))
+        payload.length,
+    ]))
+
+    const envelope = Buffer.alloc(2 + header.length + payload.length)
+    envelope.writeUInt8(1, 0)
+    envelope.writeUInt8(header.length, 1)
+    header.copy(envelope, 2)
+    payload.copy(envelope, 2 + header.length)
 
     client.send(envelope, 0, envelope.length, PORT, CAST)
     console.log(ts(), chalk.bold.magentaBright(' -> '), data)

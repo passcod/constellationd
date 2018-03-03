@@ -6,14 +6,14 @@ use std::io;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use message::Message;
-use envelope::EnvelopeCodec;
+use envelope::DatagramCodec;
 use tokio::net::{UdpFramed, UdpSocket as TokioUdp};
 use tokio::reactor::Handle;
 
 #[derive(Debug)]
 pub struct Caster {
     cast: SocketAddr,
-    socket: UdpFramed<EnvelopeCodec>,
+    socket: UdpFramed<DatagramCodec>,
 }
 
 impl Caster {
@@ -32,7 +32,7 @@ impl Caster {
             cast: SocketAddr::from_str(CAST).unwrap(),
             socket: UdpFramed::new(
                 TokioUdp::from_std(sock, &Handle::default())?,
-                EnvelopeCodec::default()
+                DatagramCodec::default()
             ),
         })
     }
@@ -55,7 +55,7 @@ impl Sink for Caster {
 }
 
 impl Stream for Caster {
-    type Item = Message;
+    type Item = io::Result<Message>;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {

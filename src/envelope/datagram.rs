@@ -8,7 +8,7 @@ use std::io;
 use tokio_io::codec::{Decoder, Encoder};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EnvelopeCodec {
+pub struct DatagramCodec {
     header_len: Option<u8>,
     nonce: Option<Nonce>,
     payload_len: Option<usize>,
@@ -17,7 +17,7 @@ pub struct EnvelopeCodec {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 struct Header (String, Nonce, usize);
 
-impl Default for EnvelopeCodec {
+impl Default for DatagramCodec {
     fn default() -> Self {
         Self {
             header_len: None,
@@ -28,6 +28,7 @@ impl Default for EnvelopeCodec {
 }
 
 fn io_error(message: String) -> io::Error {
+    println!("io_error {}", message);
     io::Error::new(io::ErrorKind::Other, message)
 }
 
@@ -74,45 +75,61 @@ fn take_header(buf: &BytesMut, length: u8) -> Result<Option<Header>, io::Error> 
     }
 }
 
-impl Decoder for EnvelopeCodec {
-    type Item = Message;
+macro_rules! kind_try {
+    ($e:expr) => {match $e {
+        Err(e) => return Ok(Some(Err(e))),
+        Ok(o) => o
+    }};
+}
+
+macro_rules! need_more {
+    ($msg:expr) => {
+        return Ok(Some(Err(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            format!("Need more because: {}", $msg)
+        ))));
+    };
+}
+
+impl Decoder for DatagramCodec {
+    type Item = io::Result<Message>;
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if buf.is_empty() {
-            return Ok(None) // request more data
+            need_more!("empty buffer");
         }
 
         if self.payload_len.is_none() {
             if self.header_len.is_none() {
-                if take_version(buf)?.is_none() {
-                    return Ok(None);
+                if kind_try!(take_version(buf)).is_none() {
+                    need_more!("no version");
                 }
 
-                if let Some(h) = take_header_len(buf)? {
+                if let Some(h) = kind_try!(take_header_len(buf)) {
                     self.header_len = Some(h);
                 } else {
-                    return Ok(None);
+                    need_more!("no header length");
                 }
             }
 
-            if let Some(header) = take_header(buf, self.header_len.unwrap())? {
+            if let Some(header) = kind_try!(take_header(buf, self.header_len.unwrap())) {
                 let total = 2 + (self.header_len.unwrap() as usize) + header.2;
 
                 if &header.0 != statics::key() {
                     buf.clone().advance(total);
-                    return Err(io_error("invalid key".into()));
+                    return Ok(Some(Err(io_error("invalid key".into()))));
                 }
 
                 if header.2 == 0 {
                     buf.clone().advance(total);
-                    return Err(io_error("zero length payload".into()));
+                    return Ok(Some(Err(io_error("zero length payload".into()))));
                 }
 
                 self.nonce = Some(header.1);
                 self.payload_len = Some(header.2);
             } else {
-                return Ok(None);
+                need_more!("incomplete header");
             }
         }
 
@@ -120,18 +137,18 @@ impl Decoder for EnvelopeCodec {
         let length = self.payload_len.unwrap();
         let total_expected = start + length;
         if buf.len() < total_expected {
-            return Ok(None);
+            need_more!("incomplete header");
         }
 
         let pbuf = &buf[start..(start + length)];
         if pbuf.len() < length {
-            return Ok(None); // just checking...
+            need_more!("incomplete header (just checking...)");
         }
 
         let payload = match open(pbuf, &self.nonce.unwrap(), statics::secret()) {
             Err(_) => {
                 buf.clone().advance(total_expected);
-                return Err(io_error("bad payload encryption".into()))
+                return Ok(Some(Err(io_error("bad payload encryption".into()))));
             },
             Ok(payload) => {
                 buf.clone().advance(total_expected);
@@ -140,13 +157,13 @@ impl Decoder for EnvelopeCodec {
         };
 
         match serde_cbor::from_slice(&payload) {
-            Err(err) => Err(io_error(format!("{}", err))),
-            Ok(m) => Ok(Some(m))
+            Err(err) => Ok(Some(Err(io_error(format!("{}", err))))),
+            Ok(m) => Ok(Some(Ok(m)))
         }
     }
 }
 
-impl Encoder for EnvelopeCodec {
+impl Encoder for DatagramCodec {
     type Item = Message;
     type Error = io::Error;
 

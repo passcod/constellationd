@@ -44,7 +44,7 @@ macro_rules! plumb {
 }
 
 fn main() {
-    println!("{} v{}\nID: {}",
+    println!("{} v{}\nID: {}\n",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
         id()
