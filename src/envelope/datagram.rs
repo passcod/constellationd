@@ -17,6 +17,14 @@ pub struct DatagramCodec {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 struct Header (String, Nonce, usize);
 
+impl DatagramCodec {
+    fn reset(&mut self) {
+        self.header_len = None;
+        self.nonce = None;
+        self.payload_len = None;
+    }
+}
+
 impl Default for DatagramCodec {
     fn default() -> Self {
         Self {
@@ -28,7 +36,7 @@ impl Default for DatagramCodec {
 }
 
 fn io_error(message: String) -> io::Error {
-    println!("io_error {}", message);
+    // println!("io_error {}", message);
     io::Error::new(io::ErrorKind::Other, message)
 }
 
@@ -75,20 +83,32 @@ fn take_header(buf: &BytesMut, length: u8) -> Result<Option<Header>, io::Error> 
     }
 }
 
+macro_rules! kind_fatal {
+    ($self:ident, $msg:expr) => {{
+        $self.reset();
+        return Ok(Some(Err(io_error($msg.into()))));
+    }};
+}
+
 macro_rules! kind_try {
-    ($e:expr) => {match $e {
-        Err(e) => return Ok(Some(Err(e))),
+    ($self:ident, $e:expr) => {match $e {
+        Err(e) => {
+            $self.reset();
+            return Ok(Some(Err(e)))
+        },
         Ok(o) => o
     }};
 }
 
 macro_rules! need_more {
-    ($msg:expr) => {
+    ($msg:expr) => {{
+        let msg = format!("Need more because: {}", $msg);
+        // println!("{}", msg);
         return Ok(Some(Err(io::Error::new(
             io::ErrorKind::UnexpectedEof,
-            format!("Need more because: {}", $msg)
+            msg
         ))));
-    };
+    }};
 }
 
 impl Decoder for DatagramCodec {
@@ -102,28 +122,28 @@ impl Decoder for DatagramCodec {
 
         if self.payload_len.is_none() {
             if self.header_len.is_none() {
-                if kind_try!(take_version(buf)).is_none() {
+                if kind_try!(self, take_version(buf)).is_none() {
                     need_more!("no version");
                 }
 
-                if let Some(h) = kind_try!(take_header_len(buf)) {
+                if let Some(h) = kind_try!(self, take_header_len(buf)) {
                     self.header_len = Some(h);
                 } else {
                     need_more!("no header length");
                 }
             }
 
-            if let Some(header) = kind_try!(take_header(buf, self.header_len.unwrap())) {
+            if let Some(header) = kind_try!(self, take_header(buf, self.header_len.unwrap())) {
                 let total = 2 + (self.header_len.unwrap() as usize) + header.2;
 
                 if &header.0 != statics::key() {
                     buf.clone().advance(total);
-                    return Ok(Some(Err(io_error("invalid key".into()))));
+                    kind_fatal!(self, "invalid key");
                 }
 
                 if header.2 == 0 {
                     buf.clone().advance(total);
-                    return Ok(Some(Err(io_error("zero length payload".into()))));
+                    kind_fatal!(self, "zero length payload");
                 }
 
                 self.nonce = Some(header.1);
@@ -148,7 +168,7 @@ impl Decoder for DatagramCodec {
         let payload = match open(pbuf, &self.nonce.unwrap(), statics::secret()) {
             Err(_) => {
                 buf.clone().advance(total_expected);
-                return Ok(Some(Err(io_error("bad payload encryption".into()))));
+                kind_fatal!(self, "bad payload encryption");
             },
             Ok(payload) => {
                 buf.clone().advance(total_expected);
@@ -157,8 +177,11 @@ impl Decoder for DatagramCodec {
         };
 
         match serde_cbor::from_slice(&payload) {
-            Err(err) => Ok(Some(Err(io_error(format!("{}", err))))),
-            Ok(m) => Ok(Some(Ok(m)))
+            Err(err) => kind_fatal!(self, format!("{}", err)),
+            Ok(m) => {
+                self.reset();
+                Ok(Some(Ok(m)))
+            }
         }
     }
 }

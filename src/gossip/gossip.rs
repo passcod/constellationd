@@ -31,11 +31,11 @@ pub type FilterFn = Fn(io::Result<Message>) -> Option<Message>;
 fn filter(msg: io::Result<Message>) -> Option<Message> {
     match msg {
         Ok(m) => {
-            println!("Good incoming: {:?}", m);
+            // println!("\x1b[0;32mGood incoming:\x1b[0m {:?}", m);
             Some(m)
         },
         Err(e) => {
-            println!("Bad incoming: {}", e);
+            println!("\x1b[0;31mBad incoming:\x1b[0m {}", e);
             None
         }
     }
