@@ -40,31 +40,33 @@ fn io_error(message: String) -> io::Error {
     io::Error::new(io::ErrorKind::Other, message)
 }
 
-fn take_version(buf: &BytesMut) -> Result<Option<()>, io::Error> {
-    match buf.get(0) {
+fn take_version(buf: &mut BytesMut) -> Result<Option<()>, io::Error> {
+    let byte = buf.get(0).map(|b| *b);
+    match byte {
         None => Ok(None),
-        Some(&constants::PROTOCOL_VERSION) => Ok(Some(())),
+        Some(constants::PROTOCOL_VERSION) => Ok(Some(())),
         Some(v) => {
-            buf.clone().advance(1);
+            buf.advance(1);
             Err(io_error(format!("bad version: {}", v)))
         },
     }
 }
 
-fn take_header_len(buf: &BytesMut) -> Result<Option<u8>, io::Error> {
-    match buf.get(1) {
+fn take_header_len(buf: &mut BytesMut) -> Result<Option<u8>, io::Error> {
+    let byte = buf.get(1).map(|b| *b);
+    match byte {
         None => Ok(None),
-        Some(&0) => {
-            buf.clone().advance(2);
+        Some(0) => {
+            buf.advance(2);
             Err(io_error("zero length header".into()))
         },
-        Some(h) => Ok(Some(*h)),
+        Some(h) => Ok(Some(h)),
     }
 }
 
-fn take_header(buf: &BytesMut, length: u8) -> Result<Option<Header>, io::Error> {
+fn take_header(buf: &mut BytesMut, length: u8) -> Result<Option<Header>, io::Error> {
     let length = length as usize;
-    let hbuf = &buf[2..(length + 2)];
+    let hbuf = &(buf.clone())[2..(length + 2)];
     if hbuf.len() != length {
         return Ok(None);
     }
@@ -75,7 +77,7 @@ fn take_header(buf: &BytesMut, length: u8) -> Result<Option<Header>, io::Error> 
             if serr.starts_with("ErrorImpl { code: EofWhileParsing") {
                 Ok(None) // incomplete input
             } else {
-                buf.clone().advance(2 + length);
+                buf.advance(2 + length);
                 Err(io_error(serr))
             }
         },
@@ -137,12 +139,12 @@ impl Decoder for DatagramCodec {
                 let total = 2 + (self.header_len.unwrap() as usize) + header.2;
 
                 if &header.0 != statics::key() {
-                    buf.clone().advance(total);
+                    buf.advance(total);
                     kind_fatal!(self, "invalid key");
                 }
 
                 if header.2 == 0 {
-                    buf.clone().advance(total);
+                    buf.advance(total);
                     kind_fatal!(self, "zero length payload");
                 }
 
@@ -160,18 +162,18 @@ impl Decoder for DatagramCodec {
             need_more!("incomplete header");
         }
 
-        let pbuf = &buf[start..(start + length)];
+        let pbuf = &(buf.clone())[start..(start + length)];
         if pbuf.len() < length {
             need_more!("incomplete header (just checking...)");
         }
 
         let payload = match open(pbuf, &self.nonce.unwrap(), statics::secret()) {
             Err(_) => {
-                buf.clone().advance(total_expected);
+                buf.advance(total_expected);
                 kind_fatal!(self, "bad payload encryption");
             },
             Ok(payload) => {
-                buf.clone().advance(total_expected);
+                buf.advance(total_expected);
                 payload
             }
         };

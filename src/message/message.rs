@@ -4,6 +4,7 @@ use super::hello::Hello;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum Body {
+    Arbitrary(String),
     Hello(Hello),
     Other,
 }
@@ -35,6 +36,10 @@ impl Message {
             ),
             body: body,
         }
+    }
+
+    fn arbitrary(msg: String) -> Self {
+        Self::new(Body::Arbitrary(msg))
     }
 
     variant!(hello, Hello);

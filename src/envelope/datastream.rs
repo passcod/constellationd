@@ -19,7 +19,7 @@ impl Decoder for DatastreamCodec {
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        match DatagramCodec::default().decode(buf) {
+        match self.0.decode(buf) {
             Ok(Some(Err(err))) => match err.kind() {
                 io::ErrorKind::UnexpectedEof => Ok(None),
                 _ => Ok(Some(Err(err)))
@@ -34,6 +34,6 @@ impl Encoder for DatastreamCodec {
     type Error = io::Error;
 
     fn encode(&mut self, msg: Self::Item, buf: &mut BytesMut) -> Result<(), Self::Error> {
-        DatagramCodec::default().encode(msg, buf)
+        self.0.encode(msg, buf)
     }
 }

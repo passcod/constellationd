@@ -31,17 +31,10 @@ mod envelope;
 mod errors;
 mod gossip;
 mod keygen;
+#[macro_use] mod macros;
 mod message;
-// mod operator;
+mod operator;
 mod statics;
-
-macro_rules! plumb {
-    ($label:expr, $future:expr) => ({
-        $future
-        .map(|thing| {println!("{} map {:?}", $label, thing);})
-        .map_err(|thing| {println!("{} err {:?}", $label, thing);})
-    })
-}
 
 fn main() {
     println!("{} v{}\nID: {}\n",
@@ -70,6 +63,6 @@ fn main() {
         current_thread::spawn(plumb!("pinger", pinger));
         current_thread::spawn(plumb!("gossip.server", gossip.server));
         current_thread::spawn(plumb!("gossip.writer", gossip.writer));
-        // current_thread::spawn(plumb!("operator", operator::server()));
+        current_thread::spawn(plumb!("operator", operator::server()));
     })
 }
