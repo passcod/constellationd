@@ -38,7 +38,7 @@ impl Message {
         }
     }
 
-    fn arbitrary(msg: String) -> Self {
+    pub fn arbitrary(msg: String) -> Self {
         Self::new(Body::Arbitrary(msg))
     }
 
