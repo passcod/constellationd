@@ -1,6 +1,9 @@
 use constants::BIND;
-use futures::{Future, IntoFuture, MapErr, Stream};
+use errors::IgnoredIoError;
+use futures::{Future, IntoFuture, MapErr, Sink, Stream};
 use futures::stream::{ForEach};
+use futures::sync::mpsc::{channel, Sender, Receiver};
+use message::Message;
 use std::io::{self, Write};
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -25,34 +28,28 @@ pub fn server<'a>() -> MapErr<ForEach<
 
 type ServerFn = Fn(TcpStream) -> io::Result<()>;
 fn handle(tcp: TcpStream) -> io::Result<()> {
-    let (writer, reader) = tcp.framed(DatastreamCodec::default()).split();
-
     println!("Got a connection");
+
+    let (writer, reader) = tcp.framed(DatastreamCodec::default()).split();
+    let (tx, rx) = channel(10);
+
+    let sink = rx.forward(writer.sink_from_err::<IgnoredIoError>());
+    current_thread::spawn(plumb!("tcp.write", sink));
+
+    let mut sender = tx.clone();
     let conn = reader.filter_map(|res| match res {
         Ok(m) => Some(m),
         Err(e) => {
             println!("Bad message: {:?}", e);
             None
         }
-    }).for_each(|msg| {
+    }).for_each(move |msg| {
         println!("TCP message: {:?}", msg);
+        sender.start_send(Message::arbitrary("hi back".into()));
         Ok(())
-    }).into_future();
+    });
 
-    // Copy the data back to the client
-    // let conn = tio::copy(reader, writer)
-    //     // print what happened
-    //     .map(|(n, _, _)| {
-    //         println!("wrote {} bytes", n)
-    //     })
-    //     // Handle any errors
-    //     .map_err(|err| {
-    //         println!("IO error {:?}", err)
-    //     });
-
-    // Spawn the future as a concurrent task
-    current_thread::spawn(plumb!("tcp.conn", conn));
-
+    current_thread::spawn(plumb!("tcp.read", conn));
     Ok(())
 }
 
