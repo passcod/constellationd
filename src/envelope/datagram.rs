@@ -179,7 +179,7 @@ impl Decoder for DatagramCodec {
         };
 
         match serde_cbor::from_slice(&payload) {
-            Err(err) => kind_fatal!(self, format!("{}", err)),
+            Err(err) => kind_fatal!(self, format!("cbor {}", err)),
             Ok(m) => {
                 self.reset();
                 Ok(Some(Ok(m)))
