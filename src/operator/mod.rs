@@ -45,7 +45,7 @@ fn handle(tcp: TcpStream) -> io::Result<()> {
         }
     }).for_each(move |msg| {
         println!("TCP message: {:?}", msg);
-        sender.start_send(Message::arbitrary("hi back".into()));
+        sender.try_send(Message::arbitrary("hi back".into()));
         Ok(())
     });
 

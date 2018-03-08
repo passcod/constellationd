@@ -18,7 +18,7 @@ extern crate tokio_io;
 extern crate tokio_timer;
 
 use futures::{Future, Stream};
-use gossip::Gossip;
+use shine::Glow;
 use message::Message;
 use statics::id;
 use std::time::Duration;
@@ -29,7 +29,7 @@ mod constants;
 mod db;
 mod envelope;
 mod errors;
-mod gossip;
+mod shine;
 mod keygen;
 #[macro_use] mod macros;
 mod message;
@@ -49,10 +49,10 @@ fn main() {
 
     keygen::main();
 
-    let mut gossip = Gossip::init().expect("Failed to initialise gossip");
-    gossip.sender.try_send(Message::hello()).expect("Failed to send hello");
+    let mut light = Glow::init().expect("Failed to initialise glow");
+    light.sender.try_send(Message::hello()).expect("Failed to send hello");
 
-    let mut ping_sender = gossip.sender.clone();
+    let mut ping_sender = light.sender.clone();
     let timer = tokio_timer::Timer::default();
     let pinger = timer.interval(Duration::new(10, 0)).for_each(move |_| {
         let _ = ping_sender.try_send(Message::hello());
@@ -61,8 +61,8 @@ fn main() {
 
     current_thread::run(|_| {
         current_thread::spawn(plumb!("pinger", pinger));
-        current_thread::spawn(plumb!("gossip.server", gossip.server));
-        current_thread::spawn(plumb!("gossip.writer", gossip.writer));
+        current_thread::spawn(plumb!("shine.server", light.server));
+        current_thread::spawn(plumb!("shine.writer", light.writer));
         current_thread::spawn(plumb!("operator", operator::server()));
     })
 }

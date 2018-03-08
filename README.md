@@ -1,4 +1,11 @@
 
+### TODOs
+
+Things that are meant to be, but not implemented in this release.
+
+- If a Hello is received on a TCP connection, enable gossip mode for
+  the connection. Hook it up to the main ping timer somehow. That
+  should provide at least rudimentary connectivity beyond UDP.
 
 
 ### Transport Envelope

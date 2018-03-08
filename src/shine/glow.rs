@@ -8,7 +8,7 @@ use std::io;
 use super::Caster;
 use super::server::{server, ServerFn};
 
-pub struct Gossip<'a> {
+pub struct Glow<'a> {
     pub server: ForEach<
         FilterMap<
             SplitStream<Caster>,
@@ -41,7 +41,7 @@ fn filter(msg: io::Result<Message>) -> Option<Message> {
     }
 }
 
-impl<'a> Gossip<'a> {
+impl<'a> Glow<'a> {
     pub fn init() -> io::Result<Self> {
         let (writer, reader) = Caster::new()?.split();
         let (tx, rx) = channel(100);

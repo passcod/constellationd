@@ -1,6 +1,6 @@
 pub use self::caster::Caster;
-pub use self::gossip::Gossip;
+pub use self::glow::Glow;
 
 pub mod caster;
-pub mod gossip;
+pub mod glow;
 pub mod server;
