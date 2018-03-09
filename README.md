@@ -26,7 +26,7 @@ To deploy, simply copy the binary and its configuration if necessary to the targ
 ### Requirements
 
 - UDP connectivity between agents, at minimum. The agent binds to port 6776 both for TCP and for UDP. UDP is required, but TCP is recommended.
-- UDP Multicast connectivity between servers. Usually that means they all need to be on the same network. This requirement may go away in the future.
+- UDP Multicast connectivity between servers. Usually that means they all need to be on the same network. This requirement may go away in the future. **Note that public clouds (AWS, Digital Ocean, etc) typically do NOT have multicast connectivity.**
 
 ### Footprint
 
@@ -49,11 +49,11 @@ Most of the time, a cluster will be Idle. Call state is a transitionary state ne
 
 ### Calling for Order
 
-Many other agents or orchestrators maintain order by either answering to a central server, or by maintaining distributed consensus, or by a mixture of the two. Constellationd takes another approach: agents maintain loose awareness of their neighbours, and only obtain consensus or readiness when needed.
+Many other agents or orchestrators maintain order either by answering to a central server, or by maintaining distributed consensus, or by a mixture of the two. Constellationd takes another approach: agents maintain loose awareness of their neighbours, and only obtain consensus or readiness when needed.
 
 Connectivity between Calls need not be maintained, and Calls that don't reach all nodes are perfectly fine! The state of the cluster as of the current Call is reported to the caller, who may then make decisions based on that.
 
-When an operator wants to know issue a command to the cluster, it issues a Call for Order with a randomly-generated Order ID to any one agent. That agent asks all other agents it can reach, and _they_ ask all other _they_ can reach, and so on, until Order is achieved.
+When an operator wants to issue a command to the cluster, it issues a Call for Order with a randomly-generated Order ID to any one agent. That agent asks all other agents it can reach, and _they_ ask all other _they_ can reach, and so on, until Order is achieved.
 
 If the cluster is already in Order, the Call fails.
 
