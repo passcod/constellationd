@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Félix Saparelli <felix@passcod.name> (https://passcod.name)",
-  "license": "ISC",
+  "license": "(LicenseRef-LICENSE AND (ISC OR CC0-1.0))",
   "dependencies": {
     "cbor": "^3.0.3",
     "chalk": "^2.3.0",

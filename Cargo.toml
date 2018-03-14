@@ -1,5 +1,6 @@
 [package]
 authors = ["Félix Saparelli <felix@passcod.name>"]
+license = "Artistic-2.0"
 name = "constellationd"
 version = "0.1.0"
 
